@@ -39,6 +39,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger("health-track")
 
+# python-telegram-bot logs full Telegram API URLs (which embed the bot token)
+# via httpx at INFO level. Raise httpx to WARNING so the token never hits logs.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 TZ = ZoneInfo(config.TIMEZONE)
 
 # In python-telegram-bot, run_daily `days` are 0-6 == Sunday-Saturday.
