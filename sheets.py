@@ -50,9 +50,10 @@ def _get_worksheet(tab: str) -> gspread.Worksheet:
 def append_measurements(data: dict, tab: str) -> None:
     """Append one measurement row to ``tab``, built in canonical ``FIELDS`` order.
 
-    ``data`` maps field keys (including ``"date"``) to values. Raises KeyError
-    if a field is missing, which surfaces a programming error early.
+    ``data`` maps field keys (including ``"date"``) to values. Fields that were
+    not logged this time are written as blanks, so a weight-only entry leaves the
+    other columns empty.
     """
-    row = [data[key] for key, _ in FIELDS]
+    row = [data.get(key, "") for key, _ in FIELDS]
     worksheet = _get_worksheet(tab)
     worksheet.append_row(row, value_input_option="USER_ENTERED")
