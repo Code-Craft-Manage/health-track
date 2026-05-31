@@ -27,7 +27,22 @@ def _require(name: str) -> str:
 
 # --- Telegram -------------------------------------------------------------
 TELEGRAM_BOT_TOKEN: str = _require("TELEGRAM_BOT_TOKEN")
-AUTHORIZED_USER_ID: int = int(_require("AUTHORIZED_USER_ID"))
+
+
+def _parse_user_ids(raw: str) -> set[int]:
+    """Parse one or more numeric Telegram user IDs, comma/space/semicolon separated."""
+    ids = {
+        int(part)
+        for part in raw.replace(";", ",").replace(" ", ",").split(",")
+        if part.strip()
+    }
+    if not ids:
+        raise RuntimeError("AUTHORIZED_USER_ID must contain at least one numeric user ID")
+    return ids
+
+
+# Accepts a single ID ("111111111") or several ("111111111, 222222222").
+AUTHORIZED_USER_IDS: set[int] = _parse_user_ids(_require("AUTHORIZED_USER_ID"))
 
 # --- Google Sheets --------------------------------------------------------
 GOOGLE_SHEET_ID: str = _require("GOOGLE_SHEET_ID")

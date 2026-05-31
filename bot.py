@@ -8,7 +8,8 @@ Flow:
     Sheet.
   * A proactive reminder is sent every Saturday at 14:00 (America/Sao_Paulo).
 
-Only ``AUTHORIZED_USER_ID`` may use the bot.
+Only users whose IDs are listed in ``AUTHORIZED_USER_ID`` may use the bot
+(one ID, or several comma-separated).
 """
 from __future__ import annotations
 
@@ -86,7 +87,7 @@ def restricted(func):
     @wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
         user = update.effective_user
-        if user is None or user.id != config.AUTHORIZED_USER_ID:
+        if user is None or user.id not in config.AUTHORIZED_USER_IDS:
             logger.warning("Unauthorized access attempt by user_id=%s", getattr(user, "id", None))
             if update.callback_query:
                 await update.callback_query.answer("Not authorized.", show_alert=True)
@@ -270,11 +271,12 @@ async def weekly_reminder(context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton("📋 Start check-in", callback_data="start_track")]]
     )
-    await context.bot.send_message(
-        chat_id=config.AUTHORIZED_USER_ID,
-        text="Good afternoon! 💪 Time for your weekly body-measurement check-in.",
-        reply_markup=keyboard,
-    )
+    for uid in config.AUTHORIZED_USER_IDS:
+        await context.bot.send_message(
+            chat_id=uid,
+            text="Good afternoon! 💪 Time for your weekly body-measurement check-in.",
+            reply_markup=keyboard,
+        )
 
 
 def main() -> None:
