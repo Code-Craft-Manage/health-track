@@ -141,7 +141,7 @@ cat ~/.ssh/health_track_deploy.pub
 #   or simply clone over HTTPS if the repo is reachable that way.
 
 # 3. Clone into the path the workflow expects:
-git clone git@github.com:lauralopes/health-track.git ~/htdocs/health-track.codecraftmanage.com
+git clone git@github.com:Code-Craft-Manage/health-track.git ~/htdocs/health-track.codecraftmanage.com
 ```
 
 After that, every push to `main` deploys automatically. To confirm:
