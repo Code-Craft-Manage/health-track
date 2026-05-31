@@ -1,0 +1,7 @@
+# Health-Track dependencies (pinned to versions proven on this machine).
+python-telegram-bot[job-queue]==22.7
+gspread==6.1.4
+google-auth==2.53.0
+google-auth-oauthlib==1.4.0
+python-dotenv==1.0.1
+tzdata
