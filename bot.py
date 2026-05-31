@@ -68,9 +68,11 @@ STEPS: list[tuple[str, str, str, str]] = [
     (key, *_MEASUREMENTS[key]) for key, _ in FIELDS if key != "date"
 ]
 
-# Conversation states: one integer per measurement step (0 .. len-1), and a
-# final confirmation state. Measurement state N is simply index N into STEPS.
+# Conversation states: one integer per measurement step (0 .. len-1), then a
+# final confirmation state, then the /start greeting's yes/no state.
+# Measurement state N is simply index N into STEPS.
 CONFIRM = len(STEPS)
+ASK_RECORD = len(STEPS) + 1
 
 
 def _fmt(value: float) -> str:
@@ -102,10 +104,50 @@ def restricted(func):
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "👋 I track your weekly body measurements and log them to your Google Sheet.\n\n"
-        "• /track — start a check-in now\n"
+        "• /start — say hi and choose to record now\n"
+        "• /track — jump straight into a check-in\n"
         "• /cancel — abort the current check-in\n\n"
         "I'll also remind you every Saturday at 14:00."
     )
+
+
+@restricted
+async def greet(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """/start — say hi and ask whether to record measurements right now."""
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("✅ Yes, let's go", callback_data="rec_yes"),
+                InlineKeyboardButton("Not now", callback_data="rec_no"),
+            ]
+        ]
+    )
+    await update.message.reply_text(
+        "Hi! 👋 I'm your body-measurement tracker.\n\n"
+        "Do you want to record your measurements now?",
+        reply_markup=keyboard,
+    )
+    return ASK_RECORD
+
+
+@restricted
+async def on_record_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle the Yes/Not-now answer to the /start greeting."""
+    query = update.callback_query
+    await query.answer()
+    if query.data == "rec_no":
+        await query.edit_message_text(
+            "No problem! Send /start or /track whenever you're ready. 💪"
+        )
+        return ConversationHandler.END
+    # rec_yes — begin the measurement flow immediately (any time, not just Saturday)
+    context.user_data.clear()
+    context.user_data["values"] = {}
+    await query.edit_message_text("Great! Let's record your measurements. 💪")
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id, text=STEPS[0][3], parse_mode="Markdown"
+    )
+    return 0
 
 
 @restricted
@@ -240,10 +282,12 @@ def main() -> None:
 
     conversation = ConversationHandler(
         entry_points=[
+            CommandHandler("start", greet),
             CommandHandler("track", start),
             CallbackQueryHandler(start, pattern="^start_track$"),
         ],
         states={
+            ASK_RECORD: [CallbackQueryHandler(on_record_choice, pattern="^rec_(yes|no)$")],
             # Every measurement step shares one handler; it knows which field to
             # expect from how many values have been collected so far.
             **{i: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_measurement)]
@@ -254,7 +298,7 @@ def main() -> None:
     )
 
     application.add_handler(conversation)
-    application.add_handler(CommandHandler(["start", "help"], help_command))
+    application.add_handler(CommandHandler("help", help_command))
 
     # Proactive weekly reminder: Saturday at 14:00 local time.
     application.job_queue.run_daily(
