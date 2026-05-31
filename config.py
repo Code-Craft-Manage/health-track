@@ -46,7 +46,20 @@ AUTHORIZED_USER_IDS: set[int] = _parse_user_ids(_require("AUTHORIZED_USER_ID"))
 
 # --- Google Sheets --------------------------------------------------------
 GOOGLE_SHEET_ID: str = _require("GOOGLE_SHEET_ID")
-GOOGLE_SHEET_TAB: str = os.getenv("GOOGLE_SHEET_TAB", "Measurements")
+
+# Per-user routing: each authorized user logs to their OWN tab in the same
+# spreadsheet. To add someone: add their Telegram ID + tab name here, and add
+# their ID to the AUTHORIZED_USER_ID secret so they're allowed in.
+USER_TABS: dict[int, str] = {
+    111111111: "Alice",
+    222222222: "Bob",
+    333333333: "Carol",
+}
+
+
+def tab_for_user(user_id: int) -> str | None:
+    """Return the spreadsheet tab this Telegram user logs to (or None)."""
+    return USER_TABS.get(user_id)
 
 # --- Misc -----------------------------------------------------------------
 # Timezone for the date stamp and the weekly reminder.

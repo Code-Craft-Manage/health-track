@@ -247,10 +247,21 @@ async def on_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await query.edit_message_text("Check-in cancelled. Nothing was saved.")
         return ConversationHandler.END
 
+    # Route to this user's own tab in the spreadsheet.
+    tab = config.tab_for_user(update.effective_user.id)
+    if tab is None:
+        logger.warning("No sheet tab configured for user_id=%s", update.effective_user.id)
+        await query.edit_message_text(
+            "⚠️ I don't have a sheet tab set up for your account, so I can't save "
+            "this. Please ask the admin to add you."
+        )
+        context.user_data.clear()
+        return ConversationHandler.END
+
     data = {"date": context.user_data["date"], **context.user_data["values"]}
     try:
         # gspread is synchronous; run it off the event loop.
-        await asyncio.to_thread(append_measurements, data)
+        await asyncio.to_thread(append_measurements, data, tab)
     except Exception as exc:  # noqa: BLE001
         logger.exception("Failed to append row to Google Sheets")
         await query.edit_message_text(
@@ -260,7 +271,9 @@ async def on_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
 
     context.user_data.clear()
-    await query.edit_message_text("Data successfully logged! Keep up the great work! 💪")
+    await query.edit_message_text(
+        f"Data successfully logged to your “{tab}” tab! Keep up the great work! 💪"
+    )
     return ConversationHandler.END
 
 

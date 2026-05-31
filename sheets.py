@@ -39,20 +39,20 @@ FIELDS: list[tuple[str, str]] = [
 HEADERS: list[str] = [header for _, header in FIELDS]
 
 
-def _get_worksheet() -> gspread.Worksheet:
+def _get_worksheet(tab: str) -> gspread.Worksheet:
     info = json.loads(config.get_oauth_token_json())
     creds = Credentials.from_authorized_user_info(info, SCOPES)
     client = gspread.authorize(creds)
     spreadsheet = client.open_by_key(config.GOOGLE_SHEET_ID)
-    return spreadsheet.worksheet(config.GOOGLE_SHEET_TAB)
+    return spreadsheet.worksheet(tab)
 
 
-def append_measurements(data: dict) -> None:
-    """Append one measurement row, built in the canonical ``FIELDS`` order.
+def append_measurements(data: dict, tab: str) -> None:
+    """Append one measurement row to ``tab``, built in canonical ``FIELDS`` order.
 
     ``data`` maps field keys (including ``"date"``) to values. Raises KeyError
     if a field is missing, which surfaces a programming error early.
     """
     row = [data[key] for key, _ in FIELDS]
-    worksheet = _get_worksheet()
+    worksheet = _get_worksheet(tab)
     worksheet.append_row(row, value_input_option="USER_ENTERED")

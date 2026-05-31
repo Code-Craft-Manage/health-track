@@ -32,9 +32,10 @@ Measurements collected, in order (→ 14 sheet columns including the date):
 
 ### 1c. Create the Google Sheet
 
-1. Create a new Google Sheet. Rename the tab (bottom-left) to **`Measurements`** (or set
-   `GOOGLE_SHEET_TAB` to whatever you use).
-2. In **row 1**, add these 14 headers, left to right:
+1. Create a new Google Sheet. Add **one tab per person**, named to match the `USER_TABS`
+   mapping in `config.py` (e.g. `Alice`, `Bob`, `Carol`). Each authorized user's check-in is
+   logged to their own tab.
+2. In **row 1 of each tab**, add these 14 headers, left to right:
 
    `Date (DD/MM/YYYY)` · `Weight (kg)` · `Neck (cm)` · `Shoulders (cm)` · `Chest (cm)` · `Biceps Left (cm)` · `Biceps Right (cm)` · `Waist (cm)` · `Abdomen (cm)` · `Hips (cm)` · `Thigh Left (cm)` · `Thigh Right (cm)` · `Calf Left (cm)` · `Calf Right (cm)`
 3. Copy the **Spreadsheet ID** from the URL → this is `GOOGLE_SHEET_ID`:
@@ -116,10 +117,12 @@ forwarded into the deploy shell and substituted by `docker compose` at runtime.
 | `SERVER_USER` | SSH user |
 | `SSH_PRIVATE_KEY` | Private key (full PEM) for that user |
 | `TELEGRAM_BOT_TOKEN` | from step 1a |
-| `AUTHORIZED_USER_ID` | from step 1b |
+| `AUTHORIZED_USER_ID` | from step 1b (one ID, or several comma-separated) |
 | `GOOGLE_SHEET_ID` | from step 1c |
-| `GOOGLE_SHEET_TAB` | e.g. `Measurements` |
 | `GOOGLE_OAUTH_TOKEN_B64` | from step 1e |
+
+> Per-user tab routing lives in `config.py` (`USER_TABS`), not in a secret. There's no
+> `GOOGLE_SHEET_TAB` secret anymore.
 
 > SSH port is hard-coded to `2244` in the workflow (matching the other bots). Change it there if
 > needed.
