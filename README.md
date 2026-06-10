@@ -9,9 +9,9 @@ confirmation, and only responds to a single authorized Telegram user.
 - **Deploy:** Docker + `docker compose` on a VPS, via GitHub Actions. **All secrets live in GitHub
   Actions secrets — there is no `.env` file on the server.**
 
-Measurements collected, in order (→ 14 sheet columns including the date):
+Measurements collected, in order (→ 15 sheet columns including the date):
 
-`Date · Weight · Neck · Shoulders · Chest · Biceps L · Biceps R · Waist · Abdomen · Hips · Thigh L · Thigh R · Calf L · Calf R`
+`Date · Weight · Height · Neck · Shoulders · Chest · Biceps L · Biceps R · Waist · Abdomen · Hips · Thigh L · Thigh R · Calf L · Calf R`
 
 ---
 
@@ -35,9 +35,9 @@ Measurements collected, in order (→ 14 sheet columns including the date):
 1. Create a new Google Sheet. Add **one tab per person**, named to match the `USER_TABS`
    mapping in `config.py` (e.g. `Alice`, `Bob`, `Carol`). Each authorized user's check-in is
    logged to their own tab.
-2. In **row 1 of each tab**, add these 14 headers, left to right:
+2. In **row 1 of each tab**, add these 15 headers, left to right:
 
-   `Date (DD/MM/YYYY)` · `Weight (kg)` · `Neck (cm)` · `Shoulders (cm)` · `Chest (cm)` · `Biceps Left (cm)` · `Biceps Right (cm)` · `Waist (cm)` · `Abdomen (cm)` · `Hips (cm)` · `Thigh Left (cm)` · `Thigh Right (cm)` · `Calf Left (cm)` · `Calf Right (cm)`
+   `Date (DD/MM/YYYY)` · `Weight (kg)` · `Height (cm)` · `Neck (cm)` · `Shoulders (cm)` · `Chest (cm)` · `Biceps Left (cm)` · `Biceps Right (cm)` · `Waist (cm)` · `Abdomen (cm)` · `Hips (cm)` · `Thigh Left (cm)` · `Thigh Right (cm)` · `Calf Left (cm)` · `Calf Right (cm)`
 3. Copy the **Spreadsheet ID** from the URL → this is `GOOGLE_SHEET_ID`:
    `https://docs.google.com/spreadsheets/d/`**`<THIS_PART>`**`/edit`
 

@@ -22,6 +22,7 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 FIELDS: list[tuple[str, str]] = [
     ("date", "Date (DD/MM/YYYY)"),
     ("weight", "Weight (kg)"),
+    ("height", "Height (cm)"),
     ("neck", "Neck (cm)"),
     ("shoulders", "Shoulders (cm)"),
     ("chest", "Chest (cm)"),

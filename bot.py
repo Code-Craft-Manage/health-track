@@ -2,8 +2,9 @@
 
 Flow:
   * The user types /start (or just "Hi"), or taps the weekly reminder button.
-  * The bot shows a menu: log Weight only, a Full check-in (all 13), or Pick a
-    custom subset of measurements.
+  * The bot shows a menu: log Height only, Weight only, Measurements (all tape
+    measurements, i.e. everything except weight and height), or Pick a custom
+    subset.
   * It asks for each chosen measurement one at a time, validating numbers (a
     comma decimal like ``82,5`` is accepted and normalised to ``82.5``).
   * It shows a summary, asks for confirmation, then appends a dated row to the
@@ -54,6 +55,7 @@ SATURDAY = 6
 # Per-measurement metadata: key -> (short label, unit, prompt shown to the user).
 _MEASUREMENTS: dict[str, tuple[str, str, str]] = {
     "weight": ("Weight", "kg", "Please enter your *Weight* in kg (e.g. 82.5):"),
+    "height": ("Height", "cm", "Please enter your *Height* in cm (e.g. 175):"),
     "neck": ("Neck", "cm", "Please enter your *Neck* in cm:"),
     "shoulders": ("Shoulders", "cm", "Please enter your *Shoulders* in cm:"),
     "chest": ("Chest", "cm", "Please enter your *Chest* in cm:"),
@@ -72,6 +74,10 @@ _MEASUREMENTS: dict[str, tuple[str, str, str]] = {
 # Raises KeyError here at import time if a field is missing its metadata.
 ALL_KEYS: list[str] = [key for key, _ in FIELDS if key != "date"]
 _ = [_MEASUREMENTS[k] for k in ALL_KEYS]  # fail fast if a prompt is missing
+
+# Tape measurements: everything except weight (logged often, on its own) and
+# height (logged rarely, on its own).
+TAPE_KEYS: list[str] = [k for k in ALL_KEYS if k not in ("weight", "height")]
 
 # Conversation states.
 MENU, SELECT, COLLECTING, CONFIRM = range(4)
@@ -106,8 +112,8 @@ def restricted(func):
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "👋 I track your body measurements and log them to your Google Sheet.\n\n"
-        "• /start (or just say “Hi”) — open the menu to log weight, the full set, "
-        "or pick measurements\n"
+        "• /start (or just say “Hi”) — open the menu to log height, weight, "
+        "the tape measurements, or pick a custom set\n"
         "• /cancel — abort the current entry\n\n"
         "I'll also remind you every Saturday at 14:00."
     )
@@ -118,8 +124,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 def _menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [
+            [InlineKeyboardButton("📏 Height only", callback_data="menu_height")],
             [InlineKeyboardButton("⚖️ Weight only", callback_data="menu_weight")],
-            [InlineKeyboardButton("📋 Full check-in", callback_data="menu_full")],
+            [InlineKeyboardButton("🧍 Measurements", callback_data="menu_measurements")],
             [InlineKeyboardButton("🧩 Pick measurements…", callback_data="menu_pick")],
             [InlineKeyboardButton("❌ Cancel", callback_data="menu_cancel")],
         ]
@@ -148,11 +155,14 @@ async def on_menu_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if choice == "menu_cancel":
         await query.edit_message_text("No problem! Send /start or “Hi” whenever you're ready. 💪")
         return ConversationHandler.END
+    if choice == "menu_height":
+        context.user_data["pending"] = ["height"]
+        return await _begin_collecting(update, context)
     if choice == "menu_weight":
         context.user_data["pending"] = ["weight"]
         return await _begin_collecting(update, context)
-    if choice == "menu_full":
-        context.user_data["pending"] = list(ALL_KEYS)
+    if choice == "menu_measurements":
+        context.user_data["pending"] = list(TAPE_KEYS)
         return await _begin_collecting(update, context)
     if choice == "menu_pick":
         context.user_data["selected"] = set()
@@ -372,7 +382,7 @@ def main() -> None:
             CallbackQueryHandler(show_menu, pattern="^start_track$"),
         ],
         states={
-            MENU: [CallbackQueryHandler(on_menu_choice, pattern="^menu_(weight|full|pick|cancel)$")],
+            MENU: [CallbackQueryHandler(on_menu_choice, pattern="^menu_(height|weight|measurements|pick|cancel)$")],
             SELECT: [CallbackQueryHandler(on_select, pattern="^(pick:[a-z_]+|pick_done|pick_cancel)$")],
             COLLECTING: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_measurement)],
             CONFIRM: [CallbackQueryHandler(on_confirm, pattern="^(confirm|cancel)$")],
