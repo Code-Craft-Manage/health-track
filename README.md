@@ -45,10 +45,15 @@ Measurements collected, in order (→ 14 sheet columns including the date):
 
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/) → create a project.
 2. **APIs & Services → Library →** enable **Google Sheets API**.
-3. **APIs & Services → OAuth consent screen →** set it up as **External**, add your Google account
-   as a **Test user** (so the token doesn't expire every 7 days).
-4. **APIs & Services → Credentials → Create credentials → OAuth client ID → Desktop app.**
-5. **Download** the JSON and save it as **`client_secret.json`** in this project folder.
+3. **APIs & Services → OAuth consent screen →** set it up as **External**.
+4. **Publish the app.** On the OAuth consent screen, under *Publishing status*, click **PUBLISH APP**
+   so the status reads **In production** — *not* Testing. This is critical: while the app is in
+   **Testing**, Google hard-expires the refresh token after **7 days**, which breaks the bot with
+   `invalid_grant: Token has been expired or revoked`. (Being a "Test user" does **not** prevent
+   this — only leaving Testing mode does.) You don't need Google's verification for a personal
+   `spreadsheets`-scope app; you'll just click through a one-time "unverified app" warning in 1e.
+5. **APIs & Services → Credentials → Create credentials → OAuth client ID → Desktop app.**
+6. **Download** the JSON and save it as **`client_secret.json`** in this project folder.
 
 > We use an OAuth **user token** (not a service account) so the rows are written by your own
 > Google account, which already owns the sheet. The sheet does not need to be shared with anyone.
@@ -60,8 +65,10 @@ pip install -r requirements.txt
 python generate_token.py
 ```
 
-A browser opens — log in with the Google account that can edit the sheet. This writes
-`token.json`. Then base64-encode it for the GitHub secret:
+A browser opens — log in with the Google account that can edit the sheet. On the
+"Google hasn't verified this app" screen, click **Advanced → Go to health-track (unsafe)**;
+that's expected for your own app. This writes `token.json`. Then base64-encode it for the
+GitHub secret:
 
 ```bash
 # macOS
@@ -167,6 +174,20 @@ See [VPS.md](VPS.md) for the quick command reference.
 
 ## 6. Refreshing the Google token
 
-The token auto-refreshes using its refresh token, so it should keep working. If Google ever
-invalidates it (e.g. you revoke access), re-run `python generate_token.py`, re-encode, and update
-the `GOOGLE_OAUTH_TOKEN_B64` secret, then push (or re-run the latest deploy) to roll it out.
+As long as the OAuth app is **published (In production)**, the token auto-refreshes using its
+refresh token and keeps working indefinitely.
+
+> ⚠️ If the bot ever fails with `invalid_grant: Token has been expired or revoked.`, the most
+> likely cause is that the OAuth consent screen slipped back into **Testing** mode (Google
+> hard-expires refresh tokens after 7 days in Testing). Confirm *Publishing status: In production*
+> on the OAuth consent screen first (see 1d step 4), **then** regenerate the token below.
+
+To regenerate (after revoking access, switching accounts, or recovering from the above):
+
+```bash
+python generate_token.py                              # writes a fresh token.json
+gh secret set GOOGLE_OAUTH_TOKEN_B64 --body "$(base64 -i token.json)"
+gh workflow run "Deploy Health-Track"                 # roll it out
+```
+
+(Or update the `GOOGLE_OAUTH_TOKEN_B64` secret in the repo UI and re-run the latest deploy.)
