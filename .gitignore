@@ -13,3 +13,6 @@ venv/
 
 # --- OS ---
 .DS_Store
+
+# --- Reference material (third-party app screenshots; keep local only) ---
+original-measurements-images/
