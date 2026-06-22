@@ -21,6 +21,7 @@ import asyncio
 import logging
 from datetime import datetime, time
 from functools import wraps
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -228,19 +229,52 @@ async def on_select(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 # --- Collecting -----------------------------------------------------------
 
+# How-to-measure cards: one image per technique (left/right share a card).
+GUIDES_DIR = Path(__file__).resolve().parent / "measurement-guides" / "cards"
+
+
+def _guide_key(field: str) -> str:
+    """Map a measurement field to its guide card (e.g. biceps_left -> biceps)."""
+    for suffix in ("_left", "_right"):
+        if field.endswith(suffix):
+            return field[: -len(suffix)]
+    return field
+
+
+async def _send_guide(
+    context: ContextTypes.DEFAULT_TYPE, chat_id: int, field: str, shown: set[str]
+) -> None:
+    """Send the how-to card for `field`, once per check-in. Best effort: a missing
+    or failed image must never block the user from entering a measurement."""
+    key = _guide_key(field)
+    if key in shown:
+        return
+    path = GUIDES_DIR / f"{key}.png"
+    if not path.exists():
+        return
+    try:
+        with path.open("rb") as photo:
+            await context.bot.send_photo(chat_id=chat_id, photo=photo)
+        shown.add(key)
+    except Exception:  # noqa: BLE001
+        logger.exception("Could not send guide image for %s", key)
+
+
 async def _begin_collecting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Acknowledge the selection and prompt for the first chosen measurement."""
     context.user_data["values"] = {}
+    shown: set[str] = context.user_data.setdefault("guides_shown", set())
+    shown.clear()
     pending: list[str] = context.user_data["pending"]
     labels = ", ".join(_MEASUREMENTS[k][0] for k in pending)
     first_prompt = _MEASUREMENTS[pending[0]][2]
+    chat_id = update.effective_chat.id
     if update.callback_query:
         await update.callback_query.edit_message_text(f"Let's log: {labels} 💪")
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id, text=first_prompt, parse_mode="Markdown"
-        )
-    else:
-        await update.message.reply_text(first_prompt, parse_mode="Markdown")
+    await _send_guide(context, chat_id, pending[0], shown)
+    await context.bot.send_message(
+        chat_id=chat_id, text=first_prompt, parse_mode="Markdown"
+    )
     return COLLECTING
 
 
@@ -275,6 +309,8 @@ async def handle_measurement(update: Update, context: ContextTypes.DEFAULT_TYPE)
     values[key] = round(value, 2)
     idx = len(values)
     if idx < len(pending):
+        shown: set[str] = context.user_data.setdefault("guides_shown", set())
+        await _send_guide(context, update.effective_chat.id, pending[idx], shown)
         await update.message.reply_text(_MEASUREMENTS[pending[idx]][2], parse_mode="Markdown")
         return COLLECTING
 
