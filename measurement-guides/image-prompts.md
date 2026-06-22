@@ -134,11 +134,10 @@ The 10 should look like one shoot. To do that:
 3. **Generate the NECK image first**, then reuse it as the reference the other
    nine match.
 
-## Recommended (free): do it all in ChatGPT
+## Recommended: generate them in one chat-based tool
 
-You already have ChatGPT Go, so this costs nothing extra — and ChatGPT is the
-*easiest* place to keep one model across all ten, because you just keep talking
-to it.
+A conversational image generator (ChatGPT, Gemini, etc.) is the easiest place to
+keep one model across all ten, because you can keep refining in the same thread:
 
 1. Start **one new chat**. Paste **prompt #1 (NECK)** and add: *"Photorealistic,
    vertical 4:5 portrait."*
@@ -149,15 +148,15 @@ to it.
 4. Generate **one at a time**; regenerate any you don't like (*"redo — make the
    tape flatter and the pose more front-on"*).
 
-**No rush is ideal here:** ChatGPT Go has a daily image cap, so just do 2–3 a day
-over a few days — you'll have all ten within a week at zero extra cost.
+**No rush:** if your tool caps how many images you can make per day, just do a
+few a day over a few days.
 
 **If it refuses** (it can be cautious about skin): keep the clothing as "fitted
 sports bra and shorts / activewear, fitness instructional photo." Avoid the words
 "underwear," "briefs," "bikini," "lingerie," or "bare" — activewear still shows
 every landmark clearly.
 
-## Other genuinely-free tools (if you hit the daily cap or want choices)
+## Other tools you can use
 
 - **Google AI Studio** (aistudio.google.com) or the **Gemini app** — free with a
   Google account, uses Imagen; very photorealistic and good at consistency.
@@ -177,4 +176,4 @@ git history if you ever subscribe — not needed for the free path.)*
 You'll have 10 photorealistic images you own. If you want, I can then build them
 into finished cards (image on top + the numbered steps underneath, like your
 originals) — the step wording is already in this folder's `README.md` / the
-`generate.py` `CARDS` table.
+`build_cards.py` `CARDS` table.

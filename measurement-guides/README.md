@@ -1,11 +1,11 @@
 # Measurement guide images
 
-Ten original, photorealistic cards showing how to take each body measurement
-Health-Track tracks — a model demonstrating the technique with the tape at the
-target landmark, plus numbered steps. They replace the reference screenshots in
-`../original-measurements-images/` (which came from a third-party app) with
-imagery generated in the user's own Gemini account, so there's no licensing or
-royalty exposure.
+These are ten original, photorealistic cards that show how to take each body
+measurement the Health-Track bot records. Each card shows a model demonstrating
+the technique, with the tape at the target landmark and numbered steps beneath
+it. They replace the reference screenshots in `../original-measurements-images/`
+(which were grabbed from a third-party app) with imagery generated in the project
+owner's own Gemini account, so there is no licensing or royalty exposure.
 
 ## Files
 
@@ -22,7 +22,7 @@ royalty exposure.
 
 One card per measurement *technique*; left/right fields share a technique.
 
-| Card (`key`) | Bot field(s) in `config`/`bot.py` |
+| Card (`key`) | Bot field(s) in `config.py` / `bot.py` |
 |---|---|
 | `neck`      | `neck` |
 | `shoulders` | `shoulders` |
