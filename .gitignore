@@ -16,3 +16,6 @@ venv/
 
 # --- Reference material (third-party app screenshots; keep local only) ---
 original-measurements-images/
+
+# --- Runtime data (per-user preferences; persisted via a Docker volume) ---
+data/

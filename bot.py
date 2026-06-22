@@ -24,7 +24,7 @@ from functools import wraps
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, Update
 from telegram.ext import (
     ApplicationBuilder,
     CallbackQueryHandler,
@@ -36,6 +36,7 @@ from telegram.ext import (
 )
 
 import config
+import prefs
 from sheets import FIELDS, append_measurements
 
 logging.basicConfig(
@@ -115,20 +116,26 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "👋 I track your body measurements and log them to your Google Sheet.\n\n"
         "• /start (or just say “Hi”) — open the menu to log height, weight, "
         "the tape measurements, or pick a custom set\n"
+        "• /guides — view all the measurement reference images\n"
         "• /cancel — abort the current entry\n\n"
+        "Tip: toggle the how-to images on/off from the menu "
+        "(🖼️ Guide images).\n"
         "I'll also remind you every Saturday at 14:00."
     )
 
 
 # --- Menu -----------------------------------------------------------------
 
-def _menu_keyboard() -> InlineKeyboardMarkup:
+def _menu_keyboard(show_guides: bool) -> InlineKeyboardMarkup:
+    toggle = "🖼️ Guide images: ON" if show_guides else "🖼️ Guide images: OFF"
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("📏 Height only", callback_data="menu_height")],
             [InlineKeyboardButton("⚖️ Weight only", callback_data="menu_weight")],
             [InlineKeyboardButton("🧍 Measurements", callback_data="menu_measurements")],
             [InlineKeyboardButton("🧩 Pick measurements…", callback_data="menu_pick")],
+            [InlineKeyboardButton("📚 View guide images", callback_data="menu_guides")],
+            [InlineKeyboardButton(toggle, callback_data="menu_toggle_guides")],
             [InlineKeyboardButton("❌ Cancel", callback_data="menu_cancel")],
         ]
     )
@@ -139,11 +146,14 @@ async def show_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Entry point (/start, /track, "Hi", reminder button): show the log menu."""
     context.user_data.clear()
     text = "Hi! 👋 What would you like to log?"
+    show_guides = prefs.get_show_guides(update.effective_user.id)
     if update.callback_query:
         await update.callback_query.answer()
-        await update.callback_query.edit_message_text(text, reply_markup=_menu_keyboard())
+        await update.callback_query.edit_message_text(
+            text, reply_markup=_menu_keyboard(show_guides)
+        )
     else:
-        await update.message.reply_text(text, reply_markup=_menu_keyboard())
+        await update.message.reply_text(text, reply_markup=_menu_keyboard(show_guides))
     return MENU
 
 
@@ -173,6 +183,26 @@ async def on_menu_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             parse_mode="Markdown",
         )
         return SELECT
+    if choice == "menu_toggle_guides":
+        uid = update.effective_user.id
+        new_val = not prefs.get_show_guides(uid)
+        prefs.set_show_guides(uid, new_val)
+        await query.edit_message_reply_markup(reply_markup=_menu_keyboard(new_val))
+        return MENU
+    if choice == "menu_guides":
+        chat_id = update.effective_chat.id
+        sent = await _send_all_guides(context, chat_id)
+        await query.edit_message_text(
+            "📚 Here are all the measurement guides:"
+            if sent
+            else "Sorry, the guide images aren't available right now."
+        )
+        await context.bot.send_message(
+            chat_id,
+            "What would you like to log?",
+            reply_markup=_menu_keyboard(prefs.get_show_guides(update.effective_user.id)),
+        )
+        return MENU
     return MENU
 
 
@@ -242,10 +272,16 @@ def _guide_key(field: str) -> str:
 
 
 async def _send_guide(
-    context: ContextTypes.DEFAULT_TYPE, chat_id: int, field: str, shown: set[str]
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int,
+    user_id: int,
+    field: str,
+    shown: set[str],
 ) -> None:
     """Send the how-to card for `field`, once per check-in. Best effort: a missing
     or failed image must never block the user from entering a measurement."""
+    if not prefs.get_show_guides(user_id):  # user turned guide images off
+        return
     key = _guide_key(field)
     if key in shown:
         return
@@ -260,6 +296,40 @@ async def _send_guide(
         logger.exception("Could not send guide image for %s", key)
 
 
+# Order for "view all guides" (10 = Telegram's media-group max → one album).
+GUIDE_CARDS: list[tuple[str, str]] = [
+    ("neck", "Neck"), ("shoulders", "Shoulders"), ("chest", "Chest"),
+    ("biceps", "Biceps"), ("waist", "Waist"), ("abdomen", "Abdomen"),
+    ("hips", "Hips"), ("thigh", "Thigh"), ("calf", "Calf"), ("weight", "Weight"),
+]
+
+
+async def _send_all_guides(context: ContextTypes.DEFAULT_TYPE, chat_id: int) -> bool:
+    """Send every guide card as a single album. Returns False if none are found."""
+    media = [
+        InputMediaPhoto(media=(GUIDES_DIR / f"{key}.png").read_bytes(), caption=label)
+        for key, label in GUIDE_CARDS
+        if (GUIDES_DIR / f"{key}.png").exists()
+    ]
+    if not media:
+        return False
+    try:
+        await context.bot.send_media_group(chat_id=chat_id, media=media)
+        return True
+    except Exception:  # noqa: BLE001
+        logger.exception("Could not send the guide album")
+        return False
+
+
+@restricted
+async def guides_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/guides — show all measurement reference cards, anytime."""
+    if not await _send_all_guides(context, update.effective_chat.id):
+        await update.message.reply_text(
+            "Sorry, the guide images aren't available right now."
+        )
+
+
 async def _begin_collecting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Acknowledge the selection and prompt for the first chosen measurement."""
     context.user_data["values"] = {}
@@ -271,7 +341,7 @@ async def _begin_collecting(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     chat_id = update.effective_chat.id
     if update.callback_query:
         await update.callback_query.edit_message_text(f"Let's log: {labels} 💪")
-    await _send_guide(context, chat_id, pending[0], shown)
+    await _send_guide(context, chat_id, update.effective_user.id, pending[0], shown)
     await context.bot.send_message(
         chat_id=chat_id, text=first_prompt, parse_mode="Markdown"
     )
@@ -310,7 +380,9 @@ async def handle_measurement(update: Update, context: ContextTypes.DEFAULT_TYPE)
     idx = len(values)
     if idx < len(pending):
         shown: set[str] = context.user_data.setdefault("guides_shown", set())
-        await _send_guide(context, update.effective_chat.id, pending[idx], shown)
+        await _send_guide(
+            context, update.effective_chat.id, update.effective_user.id, pending[idx], shown
+        )
         await update.message.reply_text(_MEASUREMENTS[pending[idx]][2], parse_mode="Markdown")
         return COLLECTING
 
@@ -418,7 +490,7 @@ def main() -> None:
             CallbackQueryHandler(show_menu, pattern="^start_track$"),
         ],
         states={
-            MENU: [CallbackQueryHandler(on_menu_choice, pattern="^menu_(height|weight|measurements|pick|cancel)$")],
+            MENU: [CallbackQueryHandler(on_menu_choice, pattern="^menu_(height|weight|measurements|pick|guides|toggle_guides|cancel)$")],
             SELECT: [CallbackQueryHandler(on_select, pattern="^(pick:[a-z_]+|pick_done|pick_cancel)$")],
             COLLECTING: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_measurement)],
             CONFIRM: [CallbackQueryHandler(on_confirm, pattern="^(confirm|cancel)$")],
@@ -428,6 +500,7 @@ def main() -> None:
 
     application.add_handler(conversation)
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("guides", guides_command))
 
     # Proactive weekly reminder: Saturday at 14:00 local time.
     application.job_queue.run_daily(
