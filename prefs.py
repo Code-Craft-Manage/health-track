@@ -17,9 +17,11 @@ _LOCK = threading.Lock()
 
 def _load() -> dict:
     try:
-        return json.loads(_PATH.read_text(encoding="utf-8"))
+        data = json.loads(_PATH.read_text(encoding="utf-8"))
     except (FileNotFoundError, ValueError):
         return {}
+    # Guard against a corrupted file whose JSON root isn't an object.
+    return data if isinstance(data, dict) else {}
 
 
 def get_show_guides(user_id: int) -> bool:

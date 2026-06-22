@@ -191,8 +191,12 @@ async def on_menu_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return MENU
     if choice == "menu_guides":
         chat_id = update.effective_chat.id
-        await query.edit_message_text("📚 Here are all the measurement guides:")
-        await _send_all_guides(context, chat_id)
+        sent = await _send_all_guides(context, chat_id)
+        await query.edit_message_text(
+            "📚 Here are all the measurement guides:"
+            if sent
+            else "Sorry, the guide images aren't available right now."
+        )
         await context.bot.send_message(
             chat_id,
             "What would you like to log?",
@@ -268,11 +272,15 @@ def _guide_key(field: str) -> str:
 
 
 async def _send_guide(
-    context: ContextTypes.DEFAULT_TYPE, chat_id: int, field: str, shown: set[str]
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int,
+    user_id: int,
+    field: str,
+    shown: set[str],
 ) -> None:
     """Send the how-to card for `field`, once per check-in. Best effort: a missing
     or failed image must never block the user from entering a measurement."""
-    if not prefs.get_show_guides(chat_id):  # user turned guide images off
+    if not prefs.get_show_guides(user_id):  # user turned guide images off
         return
     key = _guide_key(field)
     if key in shown:
@@ -333,7 +341,7 @@ async def _begin_collecting(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     chat_id = update.effective_chat.id
     if update.callback_query:
         await update.callback_query.edit_message_text(f"Let's log: {labels} 💪")
-    await _send_guide(context, chat_id, pending[0], shown)
+    await _send_guide(context, chat_id, update.effective_user.id, pending[0], shown)
     await context.bot.send_message(
         chat_id=chat_id, text=first_prompt, parse_mode="Markdown"
     )
@@ -372,7 +380,9 @@ async def handle_measurement(update: Update, context: ContextTypes.DEFAULT_TYPE)
     idx = len(values)
     if idx < len(pending):
         shown: set[str] = context.user_data.setdefault("guides_shown", set())
-        await _send_guide(context, update.effective_chat.id, pending[idx], shown)
+        await _send_guide(
+            context, update.effective_chat.id, update.effective_user.id, pending[idx], shown
+        )
         await update.message.reply_text(_MEASUREMENTS[pending[idx]][2], parse_mode="Markdown")
         return COLLECTING
 
