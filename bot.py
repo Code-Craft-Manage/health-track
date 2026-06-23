@@ -37,7 +37,7 @@ from telegram.ext import (
 
 import config
 import prefs
-from sheets import FIELDS, append_measurements
+from sheets import FIELDS, append_measurements, last_values
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -88,6 +88,42 @@ MENU, SELECT, COLLECTING, CONFIRM = range(4)
 def _fmt(value: float) -> str:
     """Render a number without a trailing ``.0`` (39.0 -> "39", 82.5 -> "82.5")."""
     return str(int(value)) if float(value).is_integer() else str(value)
+
+
+def _short_date(date: str) -> str:
+    """Trim a ``DD/MM/YYYY`` date to ``DD/MM``; leave anything else untouched."""
+    parts = date.split("/")
+    return "/".join(parts[:2]) if len(parts) == 3 else date
+
+
+async def _load_last_values(user_id: int) -> dict:
+    """Best-effort: the user's last logged value per field, ``{}`` on any failure.
+
+    Read once per check-in (not per field) and never block entry — mirrors how
+    guide images are sent best-effort.
+    """
+    tab = config.tab_for_user(user_id)
+    if tab is None:
+        return {}
+    try:
+        return await asyncio.to_thread(last_values, tab)
+    except Exception:  # noqa: BLE001
+        logger.exception("Could not load last values for user_id=%s", user_id)
+        return {}
+
+
+def _prompt_for(key: str, context: ContextTypes.DEFAULT_TYPE) -> str:
+    """The measurement prompt, with a ``last: …`` reminder when we have history."""
+    prompt = _MEASUREMENTS[key][2]
+    last = context.user_data.get("last", {}).get(key)
+    if not last:
+        return prompt
+    value, date = last
+    unit = _MEASUREMENTS[key][1]
+    suffix = f"last: {value} {unit}"
+    if date:
+        suffix += f" ({_short_date(date)})"
+    return f"{prompt}\n_{suffix}_"
 
 
 def restricted(func):
@@ -336,8 +372,9 @@ async def _begin_collecting(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     shown: set[str] = context.user_data.setdefault("guides_shown", set())
     shown.clear()
     pending: list[str] = context.user_data["pending"]
+    context.user_data["last"] = await _load_last_values(update.effective_user.id)
     labels = ", ".join(_MEASUREMENTS[k][0] for k in pending)
-    first_prompt = _MEASUREMENTS[pending[0]][2]
+    first_prompt = _prompt_for(pending[0], context)
     chat_id = update.effective_chat.id
     if update.callback_query:
         await update.callback_query.edit_message_text(f"Let's log: {labels} 💪")
@@ -383,7 +420,7 @@ async def handle_measurement(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await _send_guide(
             context, update.effective_chat.id, update.effective_user.id, pending[idx], shown
         )
-        await update.message.reply_text(_MEASUREMENTS[pending[idx]][2], parse_mode="Markdown")
+        await update.message.reply_text(_prompt_for(pending[idx], context), parse_mode="Markdown")
         return COLLECTING
 
     return await _show_summary(update, context)
