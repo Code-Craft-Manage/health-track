@@ -48,6 +48,38 @@ def _get_worksheet(tab: str) -> gspread.Worksheet:
     return spreadsheet.worksheet(tab)
 
 
+def _last_from_rows(rows: list[list[str]]) -> dict[str, tuple[str, str]]:
+    """Most recent logged value (and the date it was logged) per measurement field.
+
+    ``rows`` is the worksheet's full grid of strings, header row at index 0, laid
+    out in canonical ``FIELDS`` order. Each check-in appends a dated row with
+    blanks for fields not logged that time, so a field's latest value is the last
+    non-blank cell in its column — and may come from a different row (and date)
+    than another field's. Returns ``{field_key: (value, date)}``; fields that were
+    never logged are simply absent, and an empty/header-only sheet yields ``{}``.
+    """
+    result: dict[str, tuple[str, str]] = {}
+    if len(rows) < 2:
+        return result
+    body = rows[1:]
+    for col, (key, _header) in enumerate(FIELDS):
+        if key == "date":
+            continue
+        for row in reversed(body):
+            cell = row[col].strip() if col < len(row) else ""
+            if cell:
+                date = row[0].strip() if row else ""  # column 0 is always the date
+                result[key] = (cell, date)
+                break
+    return result
+
+
+def last_values(tab: str) -> dict[str, tuple[str, str]]:
+    """Read ``tab`` once and return the last logged value+date for each field."""
+    worksheet = _get_worksheet(tab)
+    return _last_from_rows(worksheet.get_all_values())
+
+
 def append_measurements(data: dict, tab: str) -> None:
     """Append one measurement row to ``tab``, built in canonical ``FIELDS`` order.
 

@@ -100,7 +100,8 @@ Then message your bot `/track` from the authorized account and walk through a ch
 | File | Purpose |
 |---|---|
 | `bot.py` | Entry point: the `/track` ConversationHandler + the weekly reminder job. |
-| `sheets.py` | Google auth + `append_row`. Holds the canonical column order (`FIELDS`). |
+| `sheets.py` | Google auth + `append_row`; reads back the last logged value per field. Holds the canonical column order (`FIELDS`). |
+| `tests/` | `unittest` tests for pure logic (no network/credentials). Run: `python3 -m unittest discover tests`. |
 | `config.py` | Loads env vars; resolves the OAuth token from the secret or `token.json`. |
 | `generate_token.py` | One-time local OAuth flow → `token.json`. |
 | `Dockerfile`, `docker-compose.yml` | Container build + runtime. |
@@ -168,6 +169,9 @@ See [VPS.md](VPS.md) for the quick command reference.
 
 - **Weekly reminder:** every **Saturday at 14:00 (America/Sao_Paulo)** the bot messages the
   authorized user with a *“Start check-in”* button. Tapping it (or typing `/track`) begins the flow.
+- **Last-value reminder:** each prompt shows your previous reading for that field and the date it
+  was logged (e.g. *“last: 38.5 cm (07/06)”*), read once per check-in from your own tab. It's
+  best-effort — a field you've never logged, or a read failure, simply shows no reminder.
 - **Validation:** non-numeric input is rejected with a gentle re-prompt; `82,5` (comma) is accepted.
 - **Confirmation:** the summary must be confirmed before anything is written. *Cancel* discards it.
 - **Access control:** any other Telegram user is refused.
