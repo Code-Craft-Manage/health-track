@@ -107,7 +107,7 @@ async def _load_last_values(user_id: int) -> dict:
         return {}
     try:
         return await asyncio.to_thread(last_values, tab)
-    except Exception:
+    except Exception:  # noqa: BLE001
         logger.exception("Could not load last values for user_id=%s", user_id)
         return {}
 

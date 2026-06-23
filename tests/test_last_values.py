@@ -39,10 +39,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sheets import FIELDS, _last_from_rows  # noqa: E402
 
 HEADERS = [header for _, header in FIELDS]
-# Column indices we reference by name in the fixtures below.
-WEIGHT = next(i for i, (k, _) in enumerate(FIELDS) if k == "weight")
-HEIGHT = next(i for i, (k, _) in enumerate(FIELDS) if k == "height")
-NECK = next(i for i, (k, _) in enumerate(FIELDS) if k == "neck")
 
 
 def _row(date="", **values):
