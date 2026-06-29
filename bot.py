@@ -96,6 +96,27 @@ def _short_date(date: str) -> str:
     return "/".join(parts[:2]) if len(parts) == 3 else date
 
 
+def _trend(key: str, value: float, context: ContextTypes.DEFAULT_TYPE) -> str:
+    """A directional arrow comparing ``value`` to the last logged value.
+
+    Neutral by design — body measurements aren't "good" up or down — so we only
+    show direction: ⬆️ higher, ⬇️ lower. Returns ``""`` when the value is
+    unchanged, when we have no prior value, or when it can't be parsed.
+    """
+    last = context.user_data.get("last", {}).get(key)
+    if not last:
+        return ""
+    try:
+        previous = float(last[0])
+    except (TypeError, ValueError):
+        return ""
+    if value > previous:
+        return " ⬆️"
+    if value < previous:
+        return " ⬇️"
+    return ""
+
+
 async def _load_last_values(user_id: int) -> dict:
     """Best-effort: the user's last logged value per field, ``{}`` on any failure.
 
@@ -435,7 +456,7 @@ async def _show_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     lines = [f"📋 *Check-in — {date_str}*", ""]
     for key in pending:
         label, unit, _prompt = _MEASUREMENTS[key]
-        lines.append(f"• {label}: {_fmt(values[key])} {unit}")
+        lines.append(f"• {label}: {_fmt(values[key])} {unit}{_trend(key, values[key], context)}")
     lines.append("")
     lines.append("Save this entry?")
 
