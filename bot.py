@@ -545,7 +545,12 @@ async def _heartbeat(context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     try:
         HEARTBEAT_FILE.parent.mkdir(parents=True, exist_ok=True)
-        HEARTBEAT_FILE.write_text(str(datetime.now(TZ).timestamp()), encoding="utf-8")
+        # Write-then-rename so healthcheck.py, which reads this file concurrently,
+        # never sees a half-written (and thus "corrupt") heartbeat. replace() is
+        # atomic within the same directory — mirrors prefs.py's atomic write.
+        tmp = HEARTBEAT_FILE.with_suffix(".tmp")
+        tmp.write_text(str(datetime.now(TZ).timestamp()), encoding="utf-8")
+        tmp.replace(HEARTBEAT_FILE)
     except OSError:
         logger.exception("Could not write heartbeat file")
 
