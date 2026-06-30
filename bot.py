@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from datetime import datetime, time
 from functools import wraps
 from pathlib import Path
@@ -53,6 +54,20 @@ TZ = ZoneInfo(config.TIMEZONE)
 
 # In python-telegram-bot, run_daily `days` are 0-6 == Sunday-Saturday.
 SATURDAY = 6
+
+# --- Self-heal / liveness ----------------------------------------------------
+# Two layers, because the bot can fail two different ways (seen 2026-06-28, when
+# the container stayed "Up" but stopped polling Telegram and `restart:
+# unless-stopped` never fired because the process never exited):
+#   1. The event loop writes HEARTBEAT_FILE every HEARTBEAT_INTERVAL seconds.
+#      healthcheck.py fails the container probe if it goes stale, so a stalled
+#      loop or hung process gets restarted by the autoheal sidecar.
+#   2. A watchdog job exits the process if the Telegram poller has died while the
+#      loop (and thus the heartbeat) is still alive — the case a heartbeat alone
+#      can't see. `restart: unless-stopped` then brings the bot back.
+HEARTBEAT_FILE = Path(__file__).resolve().parent / "data" / "heartbeat"
+HEARTBEAT_INTERVAL = 30  # seconds
+WATCHDOG_INTERVAL = 60  # seconds
 
 # Per-measurement metadata: key -> (short label, unit, prompt shown to the user).
 _MEASUREMENTS: dict[str, tuple[str, str, str]] = {
@@ -522,6 +537,38 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
+async def _heartbeat(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Record that the event loop is alive by rewriting the heartbeat file.
+
+    Runs on the asyncio loop, so if the loop stalls or the process hangs the file
+    stops updating and the container healthcheck (healthcheck.py) goes red.
+    """
+    try:
+        HEARTBEAT_FILE.parent.mkdir(parents=True, exist_ok=True)
+        # Write-then-rename so healthcheck.py, which reads this file concurrently,
+        # never sees a half-written (and thus "corrupt") heartbeat. replace() is
+        # atomic within the same directory — mirrors prefs.py's atomic write.
+        tmp = HEARTBEAT_FILE.with_suffix(".tmp")
+        tmp.write_text(str(datetime.now(TZ).timestamp()), encoding="utf-8")
+        tmp.replace(HEARTBEAT_FILE)
+    except OSError:
+        logger.exception("Could not write heartbeat file")
+
+
+async def _poller_watchdog(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Exit if Telegram polling has stopped while the loop keeps running.
+
+    The heartbeat only catches a stalled loop; a poller that dies on its own (as
+    on 2026-06-28) leaves the loop — and the heartbeat — alive, so we detect that
+    here and hard-exit. `os._exit` is deliberate: a graceful stop could block on
+    the already-broken poller, and `restart: unless-stopped` restarts us anyway.
+    """
+    updater = context.application.updater
+    if updater is not None and not updater.running:
+        logger.error("Telegram poller is no longer running — exiting for a restart.")
+        os._exit(1)
+
+
 async def weekly_reminder(context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton("📋 Log measurements", callback_data="start_track")]]
@@ -566,6 +613,14 @@ def main() -> None:
         time=time(hour=14, minute=0, tzinfo=TZ),
         days=(SATURDAY,),
         name="weekly_reminder",
+    )
+
+    # Self-heal: keep the heartbeat fresh, and bail out if polling silently dies.
+    application.job_queue.run_repeating(
+        _heartbeat, interval=HEARTBEAT_INTERVAL, first=0, name="heartbeat"
+    )
+    application.job_queue.run_repeating(
+        _poller_watchdog, interval=WATCHDOG_INTERVAL, first=WATCHDOG_INTERVAL, name="poller_watchdog"
     )
 
     logger.info("Health-Track bot starting (timezone=%s)…", config.TIMEZONE)

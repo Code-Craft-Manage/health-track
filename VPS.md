@@ -32,9 +32,25 @@ docker compose up -d --build
 ```bash
 cd ~/htdocs/health-track.codecraftmanage.com
 docker compose logs -f healthtrack      # live logs
-docker compose ps                       # status
+docker compose ps                       # status (shows (healthy)/(unhealthy))
 docker compose restart healthtrack      # restart
 ```
+
+## Self-heal
+
+After a 2026-06-28 incident — the container stayed `Up` but silently stopped
+polling Telegram, and `restart: unless-stopped` never fired because the process
+never exited — the bot now recovers from both failure modes on its own:
+
+- **Heartbeat → healthcheck → autoheal.** The bot rewrites `data/heartbeat`
+  every 30s; `healthcheck.py` fails the container probe once it goes stale
+  (stalled loop / hung process), and the `autoheal` sidecar restarts the
+  unhealthy container. `docker compose ps` shows the `healthtrack` health state.
+- **Poller watchdog.** If polling dies while the event loop stays alive (which
+  keeps the heartbeat fresh, so the healthcheck can't see it), an in-process job
+  exits the bot so `restart: unless-stopped` brings it back.
+
+Both layers just work after a normal deploy; there is nothing extra to run.
 
 ## Secrets
 

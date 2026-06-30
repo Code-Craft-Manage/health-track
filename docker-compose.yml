@@ -13,9 +13,35 @@ services:
       - GOOGLE_OAUTH_TOKEN_B64=${GOOGLE_OAUTH_TOKEN_B64}
       - TZ=America/Sao_Paulo
     restart: unless-stopped
+    # Liveness probe: healthcheck.py fails once the bot's heartbeat goes stale
+    # (stalled loop / hung process). Marks the container "unhealthy"; the autoheal
+    # sidecar below is what restarts it (a HEALTHCHECK on its own never acts).
+    healthcheck:
+      test: ["CMD", "python", "/app/healthcheck.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - autoheal=true
     # Persist per-user preferences (e.g. guide images on/off) across redeploys.
     volumes:
       - healthtrack-data:/app/data
+
+  # Restarts any container labelled autoheal=true that Docker reports as
+  # "unhealthy". This turns the healthcheck above into an actual recovery; with
+  # plain `restart: unless-stopped` an unhealthy-but-running container is never
+  # restarted on its own.
+  autoheal:
+    image: willfarrell/autoheal:1.2.0
+    container_name: healthtrack-autoheal
+    restart: unless-stopped
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+      - AUTOHEAL_INTERVAL=15       # seconds between unhealthy-container checks
+      - AUTOHEAL_START_PERIOD=60   # grace period before the first check
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
   healthtrack-data:
