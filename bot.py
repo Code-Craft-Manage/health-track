@@ -572,8 +572,9 @@ async def weekly_reminder(context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 
-# Commands shown in Telegram's blue "Menu" button next to the message box.
-# Only commands with a handler below belong here.
+# Commands surfaced in Telegram's blue "Menu" button next to the message box.
+# This is a curated list, not every command: /track is intentionally omitted
+# (it's a hidden alias of /start), and each entry must have a handler below.
 BOT_COMMANDS: list[BotCommand] = [
     BotCommand("start", "Open the menu and log a check-in"),
     BotCommand("guides", "View the measurement guide images"),
@@ -583,8 +584,15 @@ BOT_COMMANDS: list[BotCommand] = [
 
 
 async def _post_init(application) -> None:
-    """Register the command menu so Telegram shows the ☰ Menu button."""
-    await application.bot.set_my_commands(BOT_COMMANDS)
+    """Register the command menu so Telegram shows the ☰ Menu button.
+
+    Best-effort: a transient Telegram error here must not stop the bot from
+    starting, so we log and carry on (the menu just won't refresh this run).
+    """
+    try:
+        await application.bot.set_my_commands(BOT_COMMANDS)
+    except Exception:  # noqa: BLE001
+        logger.exception("Could not register the bot command menu")
 
 
 def main() -> None:
