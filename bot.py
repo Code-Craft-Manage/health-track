@@ -25,7 +25,13 @@ from functools import wraps
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, Update
+from telegram import (
+    BotCommand,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    InputMediaPhoto,
+    Update,
+)
 from telegram.ext import (
     ApplicationBuilder,
     CallbackQueryHandler,
@@ -202,11 +208,10 @@ def _menu_keyboard(show_guides: bool) -> InlineKeyboardMarkup:
     toggle = "🖼️ Guide images: ON" if show_guides else "🖼️ Guide images: OFF"
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("📏 Height only", callback_data="menu_height")],
             [InlineKeyboardButton("⚖️ Weight only", callback_data="menu_weight")],
             [InlineKeyboardButton("🧍 Measurements", callback_data="menu_measurements")],
             [InlineKeyboardButton("🧩 Pick measurements…", callback_data="menu_pick")],
-            [InlineKeyboardButton("📚 View guide images", callback_data="menu_guides")],
+            [InlineKeyboardButton("📏 Height only", callback_data="menu_height")],
             [InlineKeyboardButton(toggle, callback_data="menu_toggle_guides")],
             [InlineKeyboardButton("❌ Cancel", callback_data="menu_cancel")],
         ]
@@ -260,20 +265,6 @@ async def on_menu_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         new_val = not prefs.get_show_guides(uid)
         prefs.set_show_guides(uid, new_val)
         await query.edit_message_reply_markup(reply_markup=_menu_keyboard(new_val))
-        return MENU
-    if choice == "menu_guides":
-        chat_id = update.effective_chat.id
-        sent = await _send_all_guides(context, chat_id)
-        await query.edit_message_text(
-            "📚 Here are all the measurement guides:"
-            if sent
-            else "Sorry, the guide images aren't available right now."
-        )
-        await context.bot.send_message(
-            chat_id,
-            "What would you like to log?",
-            reply_markup=_menu_keyboard(prefs.get_show_guides(update.effective_user.id)),
-        )
         return MENU
     return MENU
 
@@ -581,8 +572,28 @@ async def weekly_reminder(context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 
+# Commands shown in Telegram's blue "Menu" button next to the message box.
+# Only commands with a handler below belong here.
+BOT_COMMANDS: list[BotCommand] = [
+    BotCommand("start", "Open the menu and log a check-in"),
+    BotCommand("guides", "View the measurement guide images"),
+    BotCommand("help", "How this bot works"),
+    BotCommand("cancel", "Cancel the current entry"),
+]
+
+
+async def _post_init(application) -> None:
+    """Register the command menu so Telegram shows the ☰ Menu button."""
+    await application.bot.set_my_commands(BOT_COMMANDS)
+
+
 def main() -> None:
-    application = ApplicationBuilder().token(config.TELEGRAM_BOT_TOKEN).build()
+    application = (
+        ApplicationBuilder()
+        .token(config.TELEGRAM_BOT_TOKEN)
+        .post_init(_post_init)
+        .build()
+    )
 
     conversation = ConversationHandler(
         entry_points=[
@@ -595,7 +606,7 @@ def main() -> None:
             CallbackQueryHandler(show_menu, pattern="^start_track$"),
         ],
         states={
-            MENU: [CallbackQueryHandler(on_menu_choice, pattern="^menu_(height|weight|measurements|pick|guides|toggle_guides|cancel)$")],
+            MENU: [CallbackQueryHandler(on_menu_choice, pattern="^menu_(height|weight|measurements|pick|toggle_guides|cancel)$")],
             SELECT: [CallbackQueryHandler(on_select, pattern="^(pick:[a-z_]+|pick_done|pick_cancel)$")],
             COLLECTING: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_measurement)],
             CONFIRM: [CallbackQueryHandler(on_confirm, pattern="^(confirm|cancel)$")],
