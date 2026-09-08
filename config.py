@@ -52,7 +52,15 @@ def _parse_user_tabs(raw: str) -> dict[int, str]:
             uid = int(key)
         except (TypeError, ValueError) as exc:
             raise RuntimeError(f"USER_TABS key {key!r} is not a numeric ID") from exc
-        tabs[uid] = str(value)
+        if uid in tabs:
+            # e.g. "1" and "01" both coerce to 1 — reject rather than silently
+            # dropping one mapping.
+            raise RuntimeError(f"USER_TABS has a duplicate user ID: {uid}")
+        if not isinstance(value, str) or not value.strip():
+            raise RuntimeError(
+                f"USER_TABS tab name for ID {uid} must be a non-empty string"
+            )
+        tabs[uid] = value.strip()
     return tabs
 
 
