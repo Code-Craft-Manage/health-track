@@ -23,7 +23,7 @@ Measurements collected, in order (→ 15 sheet columns including the date):
 2. Send `/newbot`, choose a name and a username (must end in `bot`).
 3. Copy the **HTTP API token** it gives you → this is `TELEGRAM_BOT_TOKEN`.
 
-### 1b. Find the authorized user's Telegram ID
+### 1b. Find each user's Telegram ID
 
 1. Have each person open [@userinfobot](https://t.me/userinfobot) (or `@RawDataBot`) and press Start.
 2. Copy the numeric **`Id`** it replies with. These IDs go into the `USER_TABS` secret (see 4a),

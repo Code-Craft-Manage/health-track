@@ -48,6 +48,11 @@ class ParseUserTabsTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             config._parse_user_tabs('{"abc": "Alice"}')
 
+    def test_non_positive_id_rejected(self):
+        for raw in ('{"0": "Alice"}', '{"-1": "Alice"}'):
+            with self.assertRaises(RuntimeError):
+                config._parse_user_tabs(raw)
+
     def test_empty_tab_name_rejected(self):
         with self.assertRaises(RuntimeError):
             config._parse_user_tabs('{"1": "   "}')
