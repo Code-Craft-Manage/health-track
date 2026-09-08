@@ -10,9 +10,9 @@ _dotenv.load_dotenv = lambda *a, **k: None
 sys.modules.setdefault("dotenv", _dotenv)
 
 # Minimal env so config's module-level _require() calls succeed on import.
-os.environ.setdefault("TELEGRAM_BOT_TOKEN", "test")
-os.environ.setdefault("USER_TABS", '{"1": "Test"}')
-os.environ.setdefault("GOOGLE_SHEET_ID", "test")
+os.environ["TELEGRAM_BOT_TOKEN"] = "test"
+os.environ["USER_TABS"] = '{"1": "Test"}'
+os.environ["GOOGLE_SHEET_ID"] = "test"
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

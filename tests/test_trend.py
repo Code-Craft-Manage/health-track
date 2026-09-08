@@ -50,9 +50,9 @@ _sheets.append_measurements = lambda *a, **k: None
 _sheets.last_values = lambda *a, **k: {}
 sys.modules.setdefault("sheets", _sheets)
 
-os.environ.setdefault("TELEGRAM_BOT_TOKEN", "test")
-os.environ.setdefault("USER_TABS", '{"1": "Test"}')
-os.environ.setdefault("GOOGLE_SHEET_ID", "test")
+os.environ["TELEGRAM_BOT_TOKEN"] = "test"
+os.environ["USER_TABS"] = '{"1": "Test"}'
+os.environ["GOOGLE_SHEET_ID"] = "test"
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
