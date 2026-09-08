@@ -21,7 +21,7 @@ jobs:
           port: 2244
           # Forward the app secrets into the remote shell so docker compose can
           # substitute them. No .env file is ever written on the server.
-          envs: TELEGRAM_BOT_TOKEN,AUTHORIZED_USER_ID,GOOGLE_SHEET_ID,GOOGLE_SHEET_TAB,GOOGLE_OAUTH_TOKEN_B64
+          envs: TELEGRAM_BOT_TOKEN,USER_TABS,GOOGLE_SHEET_ID,GOOGLE_OAUTH_TOKEN_B64
           script: |
             cd ~/htdocs/health-track.codecraftmanage.com
             git pull origin main
@@ -29,7 +29,6 @@ jobs:
             docker image prune -f
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          AUTHORIZED_USER_ID: ${{ secrets.AUTHORIZED_USER_ID }}
+          USER_TABS: ${{ secrets.USER_TABS }}
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
-          GOOGLE_SHEET_TAB: ${{ secrets.GOOGLE_SHEET_TAB }}
           GOOGLE_OAUTH_TOKEN_B64: ${{ secrets.GOOGLE_OAUTH_TOKEN_B64 }}

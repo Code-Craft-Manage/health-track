@@ -11,9 +11,8 @@ Flow:
     user's own tab in the Google Sheet (columns not logged are left blank).
   * A proactive reminder is sent every Saturday at 14:00 (America/Sao_Paulo).
 
-Only users whose IDs are listed in ``AUTHORIZED_USER_ID`` may use the bot
-(one ID, or several comma-separated). Each user logs to their own tab
-(see ``config.USER_TABS``).
+Only users whose IDs appear in the ``USER_TABS`` secret may use the bot; each
+of them logs to their own tab named there (see ``config.USER_TABS``).
 """
 from __future__ import annotations
 

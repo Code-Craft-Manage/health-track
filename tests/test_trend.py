@@ -16,6 +16,9 @@ import unittest
 _telegram = types.ModuleType("telegram")
 for _attr in ("InlineKeyboardButton", "InlineKeyboardMarkup", "InputMediaPhoto", "Update"):
     setattr(_telegram, _attr, object)
+# BotCommand is instantiated at bot.py import time (the BOT_COMMANDS list), so it
+# needs to be callable with arguments, not a bare object.
+_telegram.BotCommand = lambda *a, **k: None
 sys.modules.setdefault("telegram", _telegram)
 
 _tg_ext = types.ModuleType("telegram.ext")
@@ -37,8 +40,9 @@ sys.modules.setdefault("dotenv", _dotenv)
 
 # bot imports config, prefs, sheets — stub them so import succeeds.
 _config = types.ModuleType("config")
-_config.TZ = "UTC"
+_config.TIMEZONE = "UTC"  # bot.py reads config.TIMEZONE at import (ZoneInfo(...))
 _config.tab_for_user = lambda *a, **k: None
+_config.AUTHORIZED_USER_IDS = set()
 sys.modules.setdefault("config", _config)
 
 _prefs = types.ModuleType("prefs")
@@ -50,9 +54,9 @@ _sheets.append_measurements = lambda *a, **k: None
 _sheets.last_values = lambda *a, **k: {}
 sys.modules.setdefault("sheets", _sheets)
 
-os.environ.setdefault("TELEGRAM_BOT_TOKEN", "test")
-os.environ.setdefault("AUTHORIZED_USER_ID", "1")
-os.environ.setdefault("GOOGLE_SHEET_ID", "test")
+os.environ["TELEGRAM_BOT_TOKEN"] = "test"
+os.environ["USER_TABS"] = '{"1": "Test"}'
+os.environ["GOOGLE_SHEET_ID"] = "test"
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
