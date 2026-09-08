@@ -33,7 +33,7 @@ TELEGRAM_BOT_TOKEN: str = _require("TELEGRAM_BOT_TOKEN")
 def _parse_user_tabs(raw: str) -> dict[int, str]:
     """Parse the ``USER_TABS`` secret: a JSON object of Telegram-ID -> tab name.
 
-    Example: ``{"111111111": "Alice", "222222222": "Bob"}``. This single
+    Example: ``{"000000000": "Alice", "111111111": "Bob"}``. This single
     secret is the source of truth for both *who is authorized* (its keys) and
     *which spreadsheet tab* each user logs to (its values). It is kept out of
     source control because it contains real user IDs and names.
