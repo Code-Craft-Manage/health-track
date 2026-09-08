@@ -27,7 +27,7 @@ Measurements collected, in order (→ 15 sheet columns including the date):
 
 1. Have each person open [@userinfobot](https://t.me/userinfobot) (or `@RawDataBot`) and press Start.
 2. Copy the numeric **`Id`** it replies with. These IDs go into the `USER_TABS` secret (see 4a),
-   mapped to each person's spreadsheet tab, e.g. `{"000000000": "Alice", "111111111": "Bob"}`.
+   mapped to each person's spreadsheet tab, e.g. `{"111111111": "Alice", "222222222": "Bob"}`.
    Only IDs listed there may use the bot.
 3. Each person must also press **Start** on *your* bot at least once, so the bot is allowed to
    message them (required for the weekly reminder to be delivered).
@@ -131,7 +131,7 @@ forwarded into the deploy shell and substituted by `docker compose` at runtime.
 | `GOOGLE_OAUTH_TOKEN_B64` | from step 1e |
 
 > `USER_TABS` is the single source of truth for both the authorized-user allowlist (its keys) and
-> per-user tab routing (its values), e.g. `{"000000000": "Alice", "111111111": "Bob"}`. It's a
+> per-user tab routing (its values), e.g. `{"111111111": "Alice", "222222222": "Bob"}`. It's a
 > secret so real IDs and names stay out of source control.
 
 > SSH port is hard-coded to `2244` in the workflow (matching the other bots). Change it there if
