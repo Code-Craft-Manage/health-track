@@ -7,9 +7,8 @@ services:
       # GitHub Actions workflow populates from repository secrets. No .env file
       # is ever written on the server.
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - AUTHORIZED_USER_ID=${AUTHORIZED_USER_ID}
+      - USER_TABS=${USER_TABS}
       - GOOGLE_SHEET_ID=${GOOGLE_SHEET_ID}
-      - GOOGLE_SHEET_TAB=${GOOGLE_SHEET_TAB:-Measurements}
       - GOOGLE_OAUTH_TOKEN_B64=${GOOGLE_OAUTH_TOKEN_B64}
       - TZ=America/Sao_Paulo
     restart: unless-stopped

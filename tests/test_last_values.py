@@ -31,7 +31,7 @@ sys.modules.setdefault("google.oauth2", _oauth2)
 sys.modules.setdefault("google.oauth2.credentials", _creds)
 
 os.environ.setdefault("TELEGRAM_BOT_TOKEN", "test")
-os.environ.setdefault("AUTHORIZED_USER_ID", "1")
+os.environ.setdefault("USER_TABS", '{"1": "Test"}')
 os.environ.setdefault("GOOGLE_SHEET_ID", "test")
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

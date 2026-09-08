@@ -25,16 +25,17 @@ Measurements collected, in order (→ 15 sheet columns including the date):
 
 ### 1b. Find the authorized user's Telegram ID
 
-1. Have your husband open [@userinfobot](https://t.me/userinfobot) (or `@RawDataBot`) and press Start.
-2. Copy the numeric **`Id`** it replies with → this is `AUTHORIZED_USER_ID`.
-3. He must also press **Start** on *your* bot at least once, so the bot is allowed to message him
-   (required for the weekly reminder to be delivered).
+1. Have each person open [@userinfobot](https://t.me/userinfobot) (or `@RawDataBot`) and press Start.
+2. Copy the numeric **`Id`** it replies with. These IDs go into the `USER_TABS` secret (see 4a),
+   mapped to each person's spreadsheet tab, e.g. `{"111111111": "Alice", "222222222": "Bob"}`.
+   Only IDs listed there may use the bot.
+3. Each person must also press **Start** on *your* bot at least once, so the bot is allowed to
+   message them (required for the weekly reminder to be delivered).
 
 ### 1c. Create the Google Sheet
 
-1. Create a new Google Sheet. Add **one tab per person**, named to match the `USER_TABS`
-   mapping in `config.py` (e.g. `Alice`, `Bob`, `Carol`). Each authorized user's check-in is
-   logged to their own tab.
+1. Create a new Google Sheet. Add **one tab per person**, named to match the values in the
+   `USER_TABS` secret (see step 1b / 4a). Each authorized user's check-in is logged to their own tab.
 2. In **row 1 of each tab**, add these 15 headers, left to right:
 
    `Date (DD/MM/YYYY)` · `Weight (kg)` · `Height (cm)` · `Neck (cm)` · `Shoulders (cm)` · `Chest (cm)` · `Biceps Left (cm)` · `Biceps Right (cm)` · `Waist (cm)` · `Abdomen (cm)` · `Hips (cm)` · `Thigh Left (cm)` · `Thigh Right (cm)` · `Calf Left (cm)` · `Calf Right (cm)`
@@ -125,12 +126,13 @@ forwarded into the deploy shell and substituted by `docker compose` at runtime.
 | `SERVER_USER` | SSH user |
 | `SSH_PRIVATE_KEY` | Private key (full PEM) for that user |
 | `TELEGRAM_BOT_TOKEN` | from step 1a |
-| `AUTHORIZED_USER_ID` | from step 1b (one ID, or several comma-separated) |
+| `USER_TABS` | JSON `{id: tab}` from step 1b — who's allowed in **and** their tab |
 | `GOOGLE_SHEET_ID` | from step 1c |
 | `GOOGLE_OAUTH_TOKEN_B64` | from step 1e |
 
-> Per-user tab routing lives in `config.py` (`USER_TABS`), not in a secret. There's no
-> `GOOGLE_SHEET_TAB` secret anymore.
+> `USER_TABS` is the single source of truth for both the authorized-user allowlist (its keys) and
+> per-user tab routing (its values), e.g. `{"111111111": "Alice", "222222222": "Bob"}`. It's a
+> secret so real IDs and names stay out of source control.
 
 > SSH port is hard-coded to `2244` in the workflow (matching the other bots). Change it there if
 > needed.

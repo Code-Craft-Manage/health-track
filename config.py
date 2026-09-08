@@ -8,6 +8,7 @@ disk as a ``.env`` file.
 from __future__ import annotations
 
 import base64
+import json
 import os
 from pathlib import Path
 
@@ -29,32 +30,42 @@ def _require(name: str) -> str:
 TELEGRAM_BOT_TOKEN: str = _require("TELEGRAM_BOT_TOKEN")
 
 
-def _parse_user_ids(raw: str) -> set[int]:
-    """Parse one or more numeric Telegram user IDs, comma/space/semicolon separated."""
-    ids = {
-        int(part)
-        for part in raw.replace(";", ",").replace(" ", ",").split(",")
-        if part.strip()
-    }
-    if not ids:
-        raise RuntimeError("AUTHORIZED_USER_ID must contain at least one numeric user ID")
-    return ids
+def _parse_user_tabs(raw: str) -> dict[int, str]:
+    """Parse the ``USER_TABS`` secret: a JSON object of Telegram-ID -> tab name.
 
+    Example: ``{"111111111": "Alice", "222222222": "Bob"}``. This single
+    secret is the source of truth for both *who is authorized* (its keys) and
+    *which spreadsheet tab* each user logs to (its values). It is kept out of
+    source control because it contains real user IDs and names.
+    """
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"USER_TABS must be a JSON object of {{id: tab}}: {exc}"
+        ) from exc
+    if not isinstance(data, dict) or not data:
+        raise RuntimeError("USER_TABS must be a non-empty JSON object of {id: tab}")
+    tabs: dict[int, str] = {}
+    for key, value in data.items():
+        try:
+            uid = int(key)
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError(f"USER_TABS key {key!r} is not a numeric ID") from exc
+        tabs[uid] = str(value)
+    return tabs
 
-# Accepts a single ID ("111111111") or several ("111111111, 222222222").
-AUTHORIZED_USER_IDS: set[int] = _parse_user_ids(_require("AUTHORIZED_USER_ID"))
 
 # --- Google Sheets --------------------------------------------------------
 GOOGLE_SHEET_ID: str = _require("GOOGLE_SHEET_ID")
 
 # Per-user routing: each authorized user logs to their OWN tab in the same
-# spreadsheet. To add someone: add their Telegram ID + tab name here, and add
-# their ID to the AUTHORIZED_USER_ID secret so they're allowed in.
-USER_TABS: dict[int, str] = {
-    111111111: "Alice",
-    222222222: "Bob",
-    333333333: "Carol",
-}
+# spreadsheet. To add someone: add their Telegram ID + tab name to the
+# USER_TABS secret. Its keys double as the authorized-user allowlist.
+USER_TABS: dict[int, str] = _parse_user_tabs(_require("USER_TABS"))
+
+# Only users present in USER_TABS may use the bot.
+AUTHORIZED_USER_IDS: set[int] = set(USER_TABS)
 
 
 def tab_for_user(user_id: int) -> str | None:
